@@ -32,31 +32,47 @@ static void server(SOCKET s, struct sockaddr_in *peerp )
     {
         readfd = allfd;
         rc = select( s2 + 1, &readfd, NULL, NULL, &tv );
+        #ifdef DEBUG
+        printf( "select return - %d\n", rc );
+        #endif
         if ( rc < 0 )
             error( 1, errno, (char*)"select call error\n" );
         if ( FD_ISSET( s2, &readfd ) )
         {
             rc = recv( s2, &buf, sizeof(buf), 0 );
             if ( rc < 0 ) error( 1, errno, (char*)"recv call error\n" );
-            if ( rc == 0 ) error( 1, errno, (char*)"recv is 0\n" );
+            if ( rc == 0 ) error( 1, errno, (char*)"s2 recv is 0\n" );
             if ( rc > 0 ) rc = send( s, buf, rc, 0 );
             if ( rc < 0 ) error( 1, errno, (char*)"send call error\n" );
-            if ( rc == 0 ) error( 1, errno, (char*)"send is 0\n" );
-            printf( "recv s2 - %d\t%s\n", rc, buf );
+            if ( rc == 0 ) error( 1, errno, (char*)"s2 send is 0\n" );
+            #ifdef DEBUG
+            printf( "recv s2 - %d\t", rc );
+            #endif
+            for ( int i = 0; i < rc; i++ )
+                printf( "%c", buf[i] );
+            printf("\n");
         }
         if ( FD_ISSET( s, &readfd ) )
         {
             rc = recv( s, &buf, sizeof(buf), 0 );
             if ( rc < 0 ) error( 1, errno, (char*)"recv call error\n" );
-            if ( rc == 0 ) error( 1, errno, (char*)"recv is 0\n" );
+            if ( rc == 0 ) error( 1, errno, (char*)"s recv is 0\n" );
             if ( rc > 0 ) rc = send( s2, buf, rc, 0 );
             if ( rc < 0 ) error( 1, errno, (char*)"send call error\n" );
-            if ( rc == 0 ) error( 1, errno, (char*)"send is 0\n" );
-            printf( "recv s1 - %d\t%s\n", rc, buf );
+            if ( rc == 0 ) error( 1, errno, (char*)"s send is 0\n" );
+            #ifdef DEBUG
+            printf( "recv s1 - %d\t", rc );
+            #endif
+            for ( int i = 0; i < rc; i++ )
+                printf( "%c", buf[i] );
+            printf("\n");
         }
         tv.tv_sec = T1;
+        #ifdef DEBUG
         printf( "tv.sec=%ld\ttv.u=%ld\n", tv.tv_sec, tv.tv_usec );
+        #endif
     }
+    CLOSE( s2 );
 }
 
 int main( int argc, char **argv )
