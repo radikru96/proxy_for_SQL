@@ -4,7 +4,7 @@ RC=g++ -Wall
 debug: bin/main_debug
 release: bin/main
 clean:
-	rm -rf obj/*o bin/*
+	rm -rf obj/*o bin/* *.xml
 
 bin/main_debug: obj/main_debug.o
 	$(CC) obj/main_debug.o -o bin/main_debug

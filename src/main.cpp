@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <iostream>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
@@ -12,7 +12,10 @@
 #include <arpa/inet.h>
 #include <vector>
 #include <algorithm>
+#include <fstream>
+#include <csignal>
 #define BUFSIZE 1024
+#define PATH "log.xml"
 #define NLISTEN 1
 #define T1 1000
 char *program_name;
@@ -25,19 +28,34 @@ struct client_set
     SOCKET c;
     socklen_t peerlen;
 };
-struct timeval tv;
-fd_set allfd;
-fd_set readfd;
-char *qhname;
-char *qsname;
+
+std::vector<client_set> vcs;
+std::ofstream fout;
+
+void signalHandler( int signum )
+{
+    std::cout << "Interrupt signal (" << signum << ") received.\n";
+    for( auto i : vcs )
+    {
+        CLOSE( i.c );
+        CLOSE( i.s );
+    }
+    fout.close();
+    EXIT( 0 );
+}
 
 int main( int argc, char **argv )
 {
-    std::vector<client_set> vcs;
+    std::signal( SIGINT, signalHandler );
     client_set cs;
+    struct timeval tv;
     char buf[BUFSIZE];
+    fd_set allfd;
+    fd_set readfd;
     char *hname;
     char *sname;
+    char *qhname;
+    char *qsname;
     int rc;
     SOCKET s;
     INIT();
@@ -50,7 +68,13 @@ int main( int argc, char **argv )
     }
     else
     {
-        printf("Too few args\n");
+        std::cout << "Too few args\n";
+        return 1;
+    }
+    fout.open( PATH, std::ofstream::app);
+    if ( !fout.is_open() )
+    {
+        std::cout << "open file error\n";
         return 1;
     }
     s = tcp_server( hname, sname);
@@ -69,7 +93,7 @@ int main( int argc, char **argv )
             rc = select( vcs.back().c + 1, &readfd, NULL, NULL, &tv );
      
         #ifdef DEBUG
-        printf( "select return - %d\n", rc );
+        std::cout << "select return : " << rc << std::endl;
         #endif
      
         if ( rc < 0 )
@@ -127,18 +151,17 @@ int main( int argc, char **argv )
                 if ( rc < 0 ) error( 1, errno, (char*)"send call error\n" );
                 if ( rc == 0 ) error( 0, errno, (char*)"s send is 0\n" );
                 #ifdef DEBUG
-                printf( "recv s - %d\t", rc );
+                std::cout << "recv s - " << rc << std::endl;
                 #endif
-                printf("<request><client>%s:%d</client><message>", inet_ntoa( ics.peer.sin_addr ), ntohs( ics.peer.sin_port ) );
+                fout <<"<request><client>" << inet_ntoa( ics.peer.sin_addr ) << ':' << ntohs( ics.peer.sin_port ) << "</client><message>"; 
                 for ( int i = 5; i < rc; i++ )
-                    printf( "%c", buf[i] );
-                printf("</message></request>\n");
+                    fout << buf[i];
+                fout << "</message></request>\n";
             }
         }
         tv.tv_sec = T1;
         #ifdef DEBUG
         printf( "tv.sec=%ld\ttv.u=%ld\n", tv.tv_sec, tv.tv_usec );
         #endif
-    } while (1);
-    EXIT( 0 );
+    } while ( 1 );
 }
