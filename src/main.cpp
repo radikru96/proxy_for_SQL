@@ -153,10 +153,13 @@ int main( int argc, char **argv )
                 #ifdef DEBUG
                 std::cout << "recv s - " << rc << std::endl;
                 #endif
-                fout <<"<request><client>" << inet_ntoa( ics.peer.sin_addr ) << ':' << ntohs( ics.peer.sin_port ) << "</client><message>"; 
-                for ( int i = 5; i < rc; i++ )
-                    fout << buf[i];
-                fout << "</message></request>\n";
+                if ( ((int)buf[5]) > 32 )
+                {
+                    fout <<"<request><client>" << inet_ntoa( ics.peer.sin_addr ) << ':' << ntohs( ics.peer.sin_port ) << "</client><message>"; 
+                    for ( int i = 5; i < rc; i++ )
+                        fout << buf[i];
+                    fout << "</message></request>\n";
+                }
             }
         }
         tv.tv_sec = T1;
