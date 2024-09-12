@@ -21,6 +21,8 @@
 char *program_name;
 #include "skel.h"
 
+enum class Transaction {TODB,FROMDB,NO};
+
 struct client_set
 {
     struct sockaddr_in peer;
@@ -98,7 +100,7 @@ int main( int argc, char **argv )
      
         if ( rc < 0 )
             error( 1, errno, (char*)"select call error\n" );
-        if ( FD_ISSET( s, &readfd ) )
+        if ( FD_ISSET( s, &readfd ) ) // Check for new client
         {
             cs.peerlen = sizeof( cs.peer );
             cs.s = accept( s, (struct sockaddr * )&cs.peer, &cs.peerlen );
@@ -109,56 +111,61 @@ int main( int argc, char **argv )
             FD_SET( vcs.back().s, &allfd );
             FD_SET( vcs.back().c, &allfd );
         }
-        for ( auto ics : vcs )
+        for ( auto ics : vcs ) // Connections run
         {   
-            if ( FD_ISSET( ics.c, &readfd ) )
-            {
-                rc = recv( ics.c, &buf, sizeof(buf), 0 );
-                if ( rc < 0 ) error( 1, errno, (char*)"recv call error\n" );
-                if ( rc == 0 )
-                {
-                    #ifdef DEBUG
-                    error( 0, errno, (char*)"c recv is 0\n" );
-                    #endif
-                    CLOSE( ics.s );
-                    CLOSE( ics.c );
-                    FD_CLR( ics.s, &allfd );
-                    FD_CLR( ics.c, &allfd );
-                    vcs.erase( std::remove_if( vcs.begin(), vcs.end(), [&ics](const client_set &ecs){return ics.s == ecs.s; } ), vcs.end() );
-                    break;
-                }
-                if ( rc > 0 ) rc = send( ics.s, buf, rc, 0 );
-                if ( rc < 0 ) error( 1, errno, (char*)"send call error\n" );
-                if ( rc == 0 ) error( 0, errno, (char*)"c send is 0\n" );
+            Transaction tr;
+            int transaction_count = 0;
+            if ( FD_ISSET( ics.c, &readfd ) ) {
+                tr=Transaction::FROMDB;
+                transaction_count++;
             }
-            if ( FD_ISSET( ics.s, &readfd ) )
-            {
-                rc = recv( ics.s, &buf, sizeof(buf), 0 );
-                if ( rc < 0 ) error( 1, errno, (char*)"recv call error\n" );
-                if ( rc == 0 ) 
-                {
-                    #ifdef DEBUG
-                    error( 0, errno, (char*)"s recv is 0\n" );
-                    #endif
-                    CLOSE( ics.s );
-                    CLOSE( ics.c );
-                    FD_CLR( ics.s, &allfd );
-                    FD_CLR( ics.c, &allfd );
-                    vcs.erase( std::remove_if( vcs.begin(), vcs.end(), [&ics](const client_set &ecs){return ics.s == ecs.s; } ), vcs.end() );
-                    break;
-                }
-                if ( rc > 0 ) rc = send( ics.c, buf, rc, 0 );
-                if ( rc < 0 ) error( 1, errno, (char*)"send call error\n" );
-                if ( rc == 0 ) error( 0, errno, (char*)"s send is 0\n" );
-                #ifdef DEBUG
-                std::cout << "recv s - " << rc << std::endl;
-                #endif
-                if ( ((int)buf[5]) > 32 )
-                {
-                    fout <<"<request><client>" << inet_ntoa( ics.peer.sin_addr ) << ':' << ntohs( ics.peer.sin_port ) << "</client><message>"; 
-                    for ( int i = 5; i < rc; i++ )
-                        fout << buf[i];
-                    fout << "</message></request>\n";
+            if ( FD_ISSET( ics.s, &readfd ) ) {
+                tr=Transaction::TODB;
+                transaction_count++;
+            }
+            if ( tr != Transaction::NO ){
+                while ( transaction_count > 0 ){
+                    transaction_count--;
+                    rc = recv( tr == Transaction::FROMDB ? ics.c : ics.s , &buf, sizeof(buf), 0 );
+                    if ( rc < 0 ) error( 1, errno, (char*)"recv call error\n" );
+                    if ( rc == 0 )
+                    {
+                        #ifdef DEBUG
+                        error( 0, errno, (char*) (tr == Transaction::FROMDB ? "c recv is 0\n" : "s recv is 0\n") );
+                        #endif
+                        CLOSE( ics.s );
+                        CLOSE( ics.c );
+                        FD_CLR( ics.s, &allfd );
+                        FD_CLR( ics.c, &allfd );
+                        vcs.erase( std::remove_if( vcs.begin(), vcs.end(), [&ics](const client_set &ecs){return ics.s == ecs.s; } ), vcs.end() );
+                        break;
+                    }
+                    if ( rc > 0 ) rc = send( tr == Transaction::FROMDB ? ics.s : ics.c , buf, rc, 0 );
+                    if ( rc < 0 ) error( 1, errno, (char*)"send call error\n" );
+                    if ( rc == 0 ) error( 0, errno, (char*)(tr == Transaction::FROMDB ? "c send is 0\n" : "s send is 0\n") );
+                    if ( tr == Transaction::TODB ){
+                        #ifdef DEBUG
+                        std::cout << "recv s - " << rc << std::endl;
+                        #endif
+                        if ( ((int)buf[5]) > 32 )
+                        {
+                            #ifdef DEBUG
+                            std::cout << inet_ntoa( ics.peer.sin_addr ) << ':' << ntohs( ics.peer.sin_port ) << " \"";
+                            #endif
+                            fout << inet_ntoa( ics.peer.sin_addr ) << ':' << ntohs( ics.peer.sin_port ) << " \"";
+                            for ( int i = 5; i < rc; i++ ){
+                                fout << buf[i];
+                                #ifdef DEBUG
+                                std::cout << buf[i];
+                                #endif
+                            }
+                            fout << "\"\n";
+                            #ifdef DEBUG
+                            std::cout << "\"" << std::endl;
+                            #endif
+                        }
+                    }
+                    else tr = Transaction::TODB;
                 }
             }
         }
