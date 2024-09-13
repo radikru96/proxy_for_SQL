@@ -113,6 +113,7 @@ int main( int argc, char **argv )
         }
         for ( auto ics : vcs ) // Connections run
         {   
+            bool is_break = false;
             Transaction tr;
             int transaction_count = 0;
             if ( FD_ISSET( ics.c, &readfd ) ) {
@@ -127,17 +128,18 @@ int main( int argc, char **argv )
                 while ( transaction_count > 0 ){
                     transaction_count--;
                     rc = recv( tr == Transaction::FROMDB ? ics.c : ics.s , &buf, sizeof(buf), 0 );
-                    if ( rc < 0 ) error( 1, errno, (char*)"recv call error\n" );
-                    if ( rc == 0 )
+                    if ( rc <= 0 )
                     {
+                        if ( rc < 0 ) error( 0, errno, (char*)"recv call error\n" ); // catching connection failure
                         #ifdef DEBUG
-                        error( 0, errno, (char*) (tr == Transaction::FROMDB ? "c recv is 0\n" : "s recv is 0\n") );
+                        else error( 0, errno, (char*) (tr == Transaction::FROMDB ? "c recv is 0\n" : "s recv is 0\n") );
                         #endif
                         CLOSE( ics.s );
                         CLOSE( ics.c );
                         FD_CLR( ics.s, &allfd );
                         FD_CLR( ics.c, &allfd );
                         vcs.erase( std::remove_if( vcs.begin(), vcs.end(), [&ics](const client_set &ecs){return ics.s == ecs.s; } ), vcs.end() );
+                        is_break = true;
                         break;
                     }
                     if ( rc > 0 ) rc = send( tr == Transaction::FROMDB ? ics.s : ics.c , buf, rc, 0 );
@@ -167,6 +169,8 @@ int main( int argc, char **argv )
                     }
                     else tr = Transaction::TODB;
                 }
+                if ( is_break )
+                    break;
             }
         }
         tv.tv_sec = T1;
