@@ -5,3 +5,9 @@ Arguments:
 main [proxy port] [SQL server IP] [SQL server PORT]
 
 Used: Berkley Sockets
+
+Sysbench screens
+![1](Images/20240913_160223.jpg)
+![2](20240913_160929.jpg)
+![3](20240913_161125.jpg)
+![4](20240913_161657.jpg)
