@@ -6,7 +6,11 @@ main [proxy port] [SQL server IP] [SQL server PORT]
 
 Used: Berkley Sockets
 
-## Sysbench screens
+## Sysbench
+
+
+[Sysbench's log file](sysbench_debug.log)
+
 ### 1
 ![1](Images/20240913_160223.jpg)
 
