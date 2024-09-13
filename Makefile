@@ -1,5 +1,5 @@
-CC=g++ -g -Wall
-RC=g++ -Wall
+CC=g++ -std=c++17 -g -Wall
+RC=g++ -std=c++17 -Wall
 
 debug: bin/main_debug
 release: bin/main
