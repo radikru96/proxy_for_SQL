@@ -15,7 +15,7 @@
 #include <fstream>
 #include <csignal>
 #define BUFSIZE 1024
-#define PATH "log.xml"
+#define PATH "log.txt"
 #define NLISTEN 1
 #define T1 1000
 char *program_name;
