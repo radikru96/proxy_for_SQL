@@ -9,7 +9,8 @@ Used: Berkley Sockets
 ## Sysbench
 
 
-[Sysbench's log file](sysbench_debug.log)
+[Sysbench's debug log file](sysbench_debug.log)
+[Sysbench's release log file](sysbench.log)
 
 ### 1
 ![1](Images/20240913_160223.jpg)
